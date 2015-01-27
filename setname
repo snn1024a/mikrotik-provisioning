@@ -1,0 +1,16 @@
+#!/bin/sh
+
+webdir="/var/www/prov"
+echo "#!/bin/sh">"$webdir/setname.tmp"
+
+while read ltime mac ip etc
+	do
+	sysid=`grep -iE $mac $webdir/names |grep -oE "\b[A-Z]{4,6}.*[-][0-9a-fA-F]{2}[:][0-9a-fA-F]{2}[-]AP[0-9]{1,3}\b"`
+	echo "$sysid \t $mac \t $ip"	
+	echo "ssh -t -t -o StrictHostKeyChecking=no admin@$ip '/system identity set name=$sysid;/ip dhcp-client renew numbers=0;/quit;'">>"$webdir/setname.tmp"
+
+done <"$webdir/dnsmasq.leases"
+
+echo "rm $webdir/setname.tmp">>"$webdir/setname.tmp"
+chmod +x "$webdir/setname.tmp"
+$webdir/setname.tmp
