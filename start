@@ -1,0 +1,47 @@
+#!/bin/bash
+webdir="/var/www/prov"
+dir="/root/prov"
+ifconfig eth1 10.1.1.1 netmask 255.255.255.0
+# >/dev/null 2>/dev/null
+ifconfig eth2 192.168.88.10 netmask 255.255.255.0
+# >/dev/null 2>/dev/null
+echo "Need 100 seconds to colect all the macs.."
+service dnsmasq start
+# >/dev/null 2>/dev/null
+service dnsmasq restart
+# >/dev/null 2>/dev/null
+tcpdump -i eth1 '(ether dst host 01:00:0c:cc:cc:cc)' -e -w "$dir/tcpdump" & sleep 100;
+# >/dev/null 2>/dev/null & sleep 100; 
+sudo kill $!;
+# >/dev/null 2>/dev/null
+sleep 3;
+touch $webdir/macs
+# >/dev/null 2>/dev/null
+(sudo tcpdump -e -r "$dir/tcpdump"|cut -d' ' -f2-2|sort -u >"$webdir/macs")
+# >/dev/null 2>/dev/null
+sudo rm "$dir/tcpdump"
+cat "$webdir/macs"
+
+echo "#!/bin/bash" >"$webdir/maclogin.tmp"
+echo "read -p \"Press [Enter] key to start mactelnet you suppose to be ready to paste configuration script one AP at the time /quit at the end of the config script will save you 200ms per AP...\"" >>"$webdir/maclogin.tmp"
+while read mac 
+        do
+        echo "if mactelnet $mac -u admin -p \"\"" >>"$webdir/maclogin.tmp"
+        echo "then sed -i '/$mac/d' \"$webdir/macs\"" >>"$webdir/maclogin.tmp"
+        echo "else echo $mac mactelnet fail" >>"$webdir/maclogin.tmp"
+        echo "fi" >>"$webdir/maclogin.tmp"
+done <"$webdir/macs"
+
+echo "if [[ -s $webdir/macs ]] ; then" >>"$webdir/maclogin.tmp"
+echo "echo \"Unfortunately there is a problem. Following AP are not configured successfuly and mac telnet sessions should be repeated\"" >>"$webdir/maclogin.tmp"
+echo "cat \"$webdir/macs\"" >>"$webdir/maclogin.tmp"
+echo "else" >>"$webdir/maclogin.tmp"
+echo "sleep 1;" >>"$webdir/maclogin.tmp"
+echo "rm \"$webdir/macs\"" >>"$webdir/maclogin.tmp"
+echo "echo \"ALL AP configured successfuly\"" >>"$webdir/maclogin.tmp"
+echo "fi" >>"$webdir/maclogin.tmp"
+
+echo "echo \"Next step is to run $webdir/setname.sh but before that feed $webdir/names\"" >>"$webdir/maclogin.tmp"
+echo "rm $webdir/maclogin.tmp" >>"$webdir/maclogin.tmp"
+chmod +x "$webdir/maclogin.tmp"
+$webdir/maclogin.tmp;
